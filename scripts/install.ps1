@@ -63,7 +63,52 @@ try {
 		
 	# Get an environment variable
 	$PATH=[Environment]::GetEnvironmentVariable("PATH", "Machine")
-	logInfo "PATH: $PATH"   
+	logInfo "PATH: $PATH"
+
+    # Ensure DEPLOYMENT_HOME is set
+    if ( !$env:DEPLOYMENT_HOME ) {
+        logInfo "DEPLOYMENT_HOME is not set, attempting to determine..."
+        $deploymentDirName = get-childitem $cons3rtAgentRunDir -name -dir | select-string "Deployment"
+        $deploymentDir = "$cons3rtAgentRunDir\$deploymentDirName"
+        if (test-path $deploymentDir) {
+            $deploymentHome = $deploymentDir
+        }
+        else {
+            $errMsg = "Unable to determine DEPLOYMENT_HOME from: $deploymentDir"
+            logErr $errMsg
+            throw $errMsg
+        }
+    }
+    else {
+        logInfo "Found DEPLOYMENT_HOME set to $env:DEPLOYMENT_HOME"
+        $deploymentHome = $env:DEPLOYMENT_HOME
+    }
+    logInfo "Using DEPLOYMENT_HOME: $deploymentHome"
+
+	# Load Deployment properties
+    $deploymentPropertiesFile = "$deploymentHome\deployment-properties.ps1"
+    if ( !(test-path $deploymentPropertiesFile) ) {
+        $errMsg = "Deployment properties not found: $deploymentPropertiesFile"
+        logErr $errMsg
+        throw $errMsg
+    }
+    else {
+        logInfo "Found deployment properties file: $deploymentPropertiesFile"
+    }
+
+    # Load deployment properties as a variable, in this case cons3rt_user
+    logInfo "Loading deployment properties..."
+    import-module $deploymentPropertiesFile -force -global
+
+    # Ensure your variable was loaded
+    if ( !$cons3rt_user ) {
+        $errMsg = "Required deployment property not found: cons3rt_user"
+        logErr $errMsg
+        throw $errMsg
+    }
+    else {
+        logInfo "Found deployment property cons3rt_user: $cons3rt_user"
+    }
 }
 catch {
     logErr "Caught exception: $_"
