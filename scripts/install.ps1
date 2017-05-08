@@ -38,8 +38,8 @@ $LOGFILE = "C:\log\cons3rt-install-$LOGTAG-$TIMESTAMP.log"
 
 # Set up logging functions
 function logger($level, $logstring) {
-   $timestamp = get-date -f yyyyMMdd-HHmmss
-   $logmsg = "$timestamp: $LOGTAG - [$level] - $logstring"
+   $stamp = get-date -f yyyyMMdd-HHmmss
+   $logmsg = "$stamp - $LOGTAG - [$level] - $logstring"
    add-content $Logfile -value $logmsg
 }
 function logErr($logstring) { logger "ERROR" $logstring }
