@@ -68,7 +68,7 @@ function get_asset_dir() {
         }
         else {
             $global:ASSET_DIR = "$scriptDir\.."
-            logInfo "Determined ASSET_DIR to be: $Aglobal:SSET_DIR"
+            logInfo "Determined ASSET_DIR to be: $global:ASSET_DIR"
         }
     }
 }
