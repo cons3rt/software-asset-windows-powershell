@@ -27,10 +27,16 @@ $global:DEPLOYMENT_PROPERTIES = $null
 # exit code
 $exitCode = 0
 
+# Example file download URL
+$fileDownloadUrl = "https://s3.amazonaws.com/jackpine-files/vs2017layout_enterprise.zip"
+
+# Example file download destination
+$fileDownloadDestination = "C:\vs2017layout_enterprise.zip"
+
 # Configure the log file
 $LOGTAG = "install-sample"
-$TIMESTAMP = Get-Date -f yyyy-MM-dd-HHmm
-$LOGFILE = "C:\log\cons3rt-install-$LOGTAG-$TIMESTAMP.log"
+$TIMESTAMP = Get-Date -f yyyy-MM-dd-HHmmss
+$LOGFILE = "C:\cons3rt\log\$LOGTAG-$TIMESTAMP.log"
 
 ######################### END VARIABLES #############################
 
@@ -111,6 +117,63 @@ function get_deployment_properties() {
     import-module $global:DEPLOYMENT_PROPERTIES -force -global
 }
 
+function reliable_download() {
+    logInfo "Attempting to download file from URL: $fileDownloadUrl"
+
+    # Attempt to download multiple times
+    $numAttempts = 1
+    $maxAttempts = 10
+    $retryTime = 10
+    while($true) {
+
+        if($numAttempts -gt $maxAttempts) {
+            $errMsg = "The number of attempts to download the file exceeded: $maxAttempts"
+            logErr $errMsg
+            throw $errMsg
+        }
+
+        logInfo "Attempting to download file, attempt #: $numAttempts of $maxAttempts"
+        $downloadComplete = $false
+
+        # Download the media file
+        logInfo "Attempting to download file: $fileDownloadUrl to: $fileDownloadDestination"
+        $start = get-date
+        $Job = Start-BitsTransfer -Source $fileDownloadUrl -Destination $fileDownloadDestination -Asynchronous
+
+        $checkTime = 10
+        while (($Job.JobState -eq "Transferring") -or ($Job.JobState -eq "Connecting")) { 
+            logInfo "Download in progress, job state is: $($Job.JobState), time taken is: $((get-date).subtract($start).ticks/10000000) seconds"
+            sleep $checkTime
+        }
+
+        Switch($Job.JobState)
+        {
+            "Transferred" {
+                logInfo "Download completed, time taken: $((get-date).subtract($start).ticks/10000000) seconds"
+                Complete-BitsTransfer -BitsJob $Job
+                $downloadComplete = $true
+            }
+            "Error" {
+                $formattedError = $Job | Format-List
+                logWarn "Download failed after $((get-date).subtract($start).ticks/10000000) seconds with error: $formattedError"
+            } 
+            default {
+                logWarn "Unable to determine the failure status, will retry"
+            }
+        }
+
+        if ($downloadComplete) {
+            logInfo "Download complete, exiting the while loop..."
+            break
+        }
+
+        $numAttempts++
+        logInfo "Retrying in $retryTime seconds..."
+        sleep $retryTime
+    }
+    logInfo "File download complete to: $fileDownloadDestination"
+}
+
 ###################### END HELPER FUNCTIONS ##########################
 
 ######################## SCRIPT EXECUTION ############################
@@ -165,6 +228,12 @@ try {
 catch {
     logErr "Caught exception after $($stopwatch.Elapsed): $_"
     $exitCode = 1
+    $kill = (gwmi win32_process -Filter processid=$pid).parentprocessid
+    if ( (Get-Process -Id $kill).ProcessName -eq "cmd" ) {
+        logErr "Exiting using taskkill..."
+        Stop-Transcript
+        TASKKILL /PID $kill /T /F
+    }
 }
 finally {
     logInfo "$LOGTAG complete in $($stopwatch.Elapsed)"
@@ -176,4 +245,3 @@ logInfo "Exiting with code: $exitCode"
 stop-transcript
 get-content -Path $logfile
 exit $exitCode
-
