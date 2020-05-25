@@ -1,21 +1,21 @@
-# install.ps1
-# Created by Joseph Yennaco (9/1/2016)
+#!/usr/bin/env pwsh
+<#
+This is a sample powershell asset install script.
+
+It shows:
+
+- General recommended asset structure for Powershell
+- Sample file download
+- Usage of DEPLOYMENT_HOME and ASSET_DIR
+- Loading deployment properties
+- Logging to a log file
+#>
 
 # Set the Error action preference when an exception is caught
 $ErrorActionPreference = "Stop"
 
 # Start a stopwatch to record asset run time
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-# Determine this script's parent directory
-# For Powershell v2 use the following (default):
-$scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
-# For Powershell > v3 you can use one of the following:
-#     $scriptPath = Split-Path -LiteralPath $(if ($PSVersionTable.PSVersion.Major -ge 3) { $PSCommandPath } else { & { $MyInvocation.ScriptName } })
-#     $scriptPath = $PSScriptRoot
-
-# Load the PATH environment variable
-$env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine")
 
 ########################### VARIABLES ###############################
 
@@ -34,19 +34,18 @@ $fileDownloadUrl = "https://s3.amazonaws.com/jackpine-files/vs2017layout_enterpr
 $fileDownloadDestination = "C:\vs2017layout_enterprise.zip"
 
 # Configure the log file
-$LOGTAG = "install-sample"
-$TIMESTAMP = Get-Date -f yyyy-MM-dd-HHmmss
-$LOGFILE = "C:\cons3rt\log\$LOGTAG-$TIMESTAMP.log"
+$logTag = 'sample-install.ps1'
+$logFileTimestamp = Get-Date -f "yyyyMMdd-HHmmss"
+$logFile = "C:\cons3rt-agent\log\$logTag-$logFileTimestamp.log"
 
 ######################### END VARIABLES #############################
 
 ######################## HELPER FUNCTIONS ############################
 
-# Set up logging functions
+# Logging methods
 function logger($level, $logstring) {
-   $stamp = get-date -f yyyyMMdd-HHmmss
-   $logmsg = "$stamp - $LOGTAG - [$level] - $logstring"
-   write-output $logmsg
+    $stamp = get-date -f "yyyyMMdd HH:mm:ss"
+    "$stamp $logTag [$level]: $logstring"
 }
 function logErr($logstring) { logger "ERROR" $logstring }
 function logWarn($logstring) { logger "WARNING" $logstring }
@@ -183,7 +182,10 @@ start-transcript -append -path $logfile
 logInfo "Running $LOGTAG..."
 
 try {
-    logInfo "Installing at: $TIMESTAMP"
+    logInfo "Installing: $logTag"
+
+    # Load the PATH environment variable
+    $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine")
     
     # Set asset dir
     logInfo "Setting ASSET_DIR..."
